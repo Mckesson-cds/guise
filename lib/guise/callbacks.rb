@@ -1,4 +1,5 @@
 module Guise
+  # @api private
   class Callback
     def initialize(guise, attribute)
       @guise = guise
@@ -6,6 +7,7 @@ module Guise
     end
   end
 
+  # @api private
   class SourceCallback < Callback
     def after_initialize(record)
       if record.new_record?
@@ -14,6 +16,7 @@ module Guise
     end
   end
 
+  # @api private
   class AssociationCallback < Callback
     def after_initialize(record)
       record.assign_attributes(@attribute => @guise)

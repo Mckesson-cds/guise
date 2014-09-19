@@ -5,6 +5,26 @@ require 'active_support/core_ext/string/inflections'
 
 module Guise
   module Syntax
+    # Setup the moodel's `guises` association. Given the following setup:
+    #
+    # ```ruby
+    # class User < ActiveRecord::Base
+    #   has_guises :DeskWorker, :MailForwarder, association: :roles, attribute: :value
+    # end
+    # ```
+    #
+    # The following is configured:
+    #
+    # * `has_many` association named according to the `:association` option.
+    # * `User.desk_workers` and `User.mail_forwarders` model scopes.
+    # * `User#has_guise?` that checks if a user is a particular type.
+    # * `User#desk_worker?`, `User#mail_forwarder?` that proxy to `User#has_guise?`.
+    # * `User#has_guises?` that checks if a user has records for all the types
+    #   supplied. This is aliased to `User#has_roles?`.
+    # * `User#has_any_guises?` that checks if a user has records for any of the
+    #   types supplied. This is aliased to `User#has_any_roles?`.
+    #
+    # @param [Array<Symbol, String>] *guises names of guises that should be allowed
     def has_guises(*guises)
       include Introspection
 
@@ -45,6 +65,35 @@ module Guise
       end
     end
 
+    # Specifies that the calling model class is a subclass a model configured
+    # with {Syntax#has_guises has_guises} specified by `class_name`.
+    #
+    # Configures the caller with the correct `default_scope`. For example:
+    #
+    # ```ruby
+    # class DeskWorker < User
+    #   guise_of :User
+    # end
+    # ```
+    #
+    # Is equivalent to:
+    #
+    # ```ruby
+    # class DeskWorker < User
+    #   default_scope -> { desk_workers }
+    #
+    #   after_initialize do
+    #     self.guises.build(title: 'DeskWorker')
+    #   end
+    #
+    #   after_create do
+    #     self.guises.create(title: 'DeskWorker')
+    #   end
+    # end
+    # ```
+    #
+    # @param [String, Symbol] class_name name of the class configured with
+    #   {Syntax#has_guises has_guises} that caller is a subclass of.
     def guise_of(class_name)
       options = Guise.registry[class_name]
 
@@ -57,6 +106,16 @@ module Guise
       after_initialize SourceCallback.new(self.name, options[:attribute])
     end
 
+    # Configures the other end of the association defined by {Syntax#has_guises
+    # has_guises}. Defines equivalent scopes defined on the model configured
+    # with {Syntax#has_guises has_guises}
+    #
+    # @param [Symbol, String] class_name name of the class configured with
+    #   {Syntax#has_guises has_guises}
+    # @param [Hash] options options to configure the `belongs_to` association.
+    # @option options [false] :validate specify `false` to skip
+    #   validations for the `:attribute` specified in {Syntax#has_guises
+    #   has_guises}
     def guise_for(class_name, options = {})
       guise_options = Guise.registry[class_name]
 
